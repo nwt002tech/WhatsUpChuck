@@ -34,17 +34,30 @@ st.markdown("""
         font-weight: bold;
     }
     @media (max-width: 768px) {
-        .responsive-columns {
-            flex-direction: column;
-        }
         .stColumn {
             width: 100% !important;
+        }
+        [data-testid="column"] {
+            width: 100% !important;
+            flex: unset !important;
         }
     }
     .stButton>button {
         background: linear-gradient(45deg, #8A2BE2, #4B0082) !important;
         color: white !important;
         border: none;
+        transition: all 0.3s;
+    }
+    .stButton>button:hover {
+        transform: scale(1.05);
+    }
+    .stTextInput>div>div>input {
+        background-color: #0E1117 !important;
+        color: white !important;
+    }
+    .stDateInput>div>div>input {
+        background-color: #0E1117 !important;
+        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -75,27 +88,28 @@ if "🔍 Search Events" in menu:
     next_month = today + timedelta(days=30)
     date_range = st.date_input("📅 Date Range", (today, next_month))
     
-    # Initialize query
-    query = supabase.table("events")
-    
-    # Apply filters using proper Supabase methods
-    if city:
-        query = query.ilike("city", f"%{city}%")
-    if artist:
-        query = query.ilike("artist_name", f"%{artist}%")
-    if venue:
-        query = query.ilike("venue_name", f"%{venue}%")
-    
-    # Apply date filter if both dates selected
-    if len(date_range) == 2:
-        start_date, end_date = date_range
-        query = query.gte("event_date", str(start_date))
-        query = query.lte("event_date", str(end_date))
-    
     # Search button with loading state
     if st.button("Search", use_container_width=True):
         with st.spinner("Finding events..."):
             try:
+                # Initialize query
+                query = supabase.table("events")
+                
+                # Apply text filters
+                if city:
+                    query = query.filter("city", "ilike", f"%{city}%")
+                if artist:
+                    query = query.filter("artist_name", "ilike", f"%{artist}%")
+                if venue:
+                    query = query.filter("venue_name", "ilike", f"%{venue}%")
+                
+                # Apply date range filter
+                if len(date_range) == 2:
+                    start_date, end_date = date_range
+                    query = query.filter("event_date", "gte", str(start_date))
+                    query = query.filter("event_date", "lte", str(end_date))
+                
+                # Execute query
                 data = query.order("event_date", desc=False).execute()
                 events = data.data
                 
