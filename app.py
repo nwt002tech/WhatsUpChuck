@@ -37,6 +37,9 @@ st.markdown("""
         .responsive-columns {
             flex-direction: column;
         }
+        .stColumn {
+            width: 100% !important;
+        }
     }
     .stButton>button {
         background: linear-gradient(45deg, #8A2BE2, #4B0082) !important;
@@ -72,26 +75,25 @@ if "🔍 Search Events" in menu:
     next_month = today + timedelta(days=30)
     date_range = st.date_input("📅 Date Range", (today, next_month))
     
-    # Build filters
-    filters = []
+    # Build query with proper Supabase syntax
+    query = supabase.table("events")
+    
     if city:
-        filters.append(("city", "ilike", f"%{city}%"))
+        query = query.ilike("city", f"%{city}%")
     if artist:
-        filters.append(("artist_name", "ilike", f"%{artist}%"))
+        query = query.ilike("artist_name", f"%{artist}%")
     if venue:
-        filters.append(("venue_name", "ilike", f"%{venue}%"))
+        query = query.ilike("venue_name", f"%{venue}%")
     
     # Apply date filter if both dates selected
     if len(date_range) == 2:
-        filters.append(("event_date", "gte", str(date_range[0])))
-        filters.append(("event_date", "lte", str(date_range[1])))
+        start_date, end_date = date_range
+        query = query.gte("event_date", str(start_date))
+        query = query.lte("event_date", str(end_date))
     
     # Search button with loading state
     if st.button("Search", use_container_width=True):
         with st.spinner("Finding events..."):
-            query = supabase.table("events")
-            for f in filters:
-                query = query.filter(*f)
             data = query.order("event_date", desc=False).execute()
             events = data.data
             
