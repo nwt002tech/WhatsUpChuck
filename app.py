@@ -92,25 +92,25 @@ if "🔍 Search Events" in menu:
     if st.button("Search", use_container_width=True):
         with st.spinner("Finding events..."):
             try:
-                # Initialize query
-                query = supabase.table("events")
+                # Build base query
+                query = supabase.table("events").select("*")
                 
-                # Apply text filters
+                # Apply text filters using ilike
                 if city:
-                    query = query.filter("city", "ilike", f"%{city}%")
+                    query = query.ilike("city", f"%{city}%")
                 if artist:
-                    query = query.filter("artist_name", "ilike", f"%{artist}%")
+                    query = query.ilike("artist_name", f"%{artist}%")
                 if venue:
-                    query = query.filter("venue_name", "ilike", f"%{venue}%")
+                    query = query.ilike("venue_name", f"%{venue}%")
                 
                 # Apply date range filter
                 if len(date_range) == 2:
                     start_date, end_date = date_range
-                    query = query.filter("event_date", "gte", str(start_date))
-                    query = query.filter("event_date", "lte", str(end_date))
+                    query = query.gte("event_date", str(start_date))
+                    query = query.lte("event_date", str(end_date))
                 
                 # Execute query
-                data = query.order("event_date", desc=False).execute()
+                data = query.execute()
                 events = data.data
                 
                 if not events:
@@ -125,7 +125,11 @@ if "🔍 Search Events" in menu:
                             st.markdown(f"<div class='card'>", unsafe_allow_html=True)
                             
                             # Date badge
-                            st.markdown(f"<div class='event-date'>{row['event_date']}</div>", 
+                            event_date = row['event_date']
+                            if isinstance(event_date, str):
+                                # Format date string if needed
+                                event_date = event_date.split('T')[0]
+                            st.markdown(f"<div class='event-date'>{event_date}</div>", 
                                        unsafe_allow_html=True)
                             
                             # Artist header
