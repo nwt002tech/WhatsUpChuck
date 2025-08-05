@@ -38,7 +38,7 @@ if menu == "Search Events":
         query = query.filter(*f)
 
     try:
-        data = query.order("event_date", desc=False).execute()
+        data = query.select("*").order("event_date", desc=False).execute()
     except Exception as e:
         st.error(f"Error fetching events: {e}")
         st.stop()
