@@ -1,10 +1,17 @@
 import streamlit as st
-from supabase_client import supabase
 from datetime import date
+from supabase_client import supabase
 
 st.set_page_config(page_title="WhatsUpChuck", layout="centered")
-
 st.title("🎸 WhatsUpChuck – Local Live Entertainment")
+
+# Optional test connection check
+try:
+    test = supabase.table("events").select("*").limit(1).execute()
+    st.success("✅ Supabase connected successfully.")
+except Exception as e:
+    st.error(f"❌ Supabase connection failed: {e}")
+    st.stop()
 
 menu = st.sidebar.radio("Menu", ["Search Events", "Submit Event"])
 
@@ -23,11 +30,20 @@ if menu == "Search Events":
         filters.append(("venue_name", "ilike", f"%{venue}%"))
 
     query = supabase.table("events")
+    if query is None:
+        st.error("❌ Could not connect to 'events' table.")
+        st.stop()
+
     for f in filters:
         query = query.filter(*f)
-    data = query.order("event_date", desc=False).execute()
 
-    if data.data:
+    try:
+        data = query.order("event_date", desc=False).execute()
+    except Exception as e:
+        st.error(f"Error fetching events: {e}")
+        st.stop()
+
+    if data and data.data:
         for row in data.data:
             st.markdown(f"### {row['artist_name']}")
             st.write(f"📍 {row['venue_name']}, {row['city']}")
@@ -53,11 +69,14 @@ elif menu == "Submit Event":
             if not artist or not venue or not city:
                 st.error("Please fill out all required fields.")
             else:
-                supabase.table("events").insert({
-                    "artist_name": artist,
-                    "venue_name": venue,
-                    "city": city,
-                    "event_date": str(event_date),
-                    "flyer_url": flyer_url or None
-                }).execute()
-                st.success("Event submitted successfully!")
+                try:
+                    supabase.table("events").insert({
+                        "artist_name": artist,
+                        "venue_name": venue,
+                        "city": city,
+                        "event_date": str(event_date),
+                        "flyer_url": flyer_url or None
+                    }).execute()
+                    st.success("🎉 Event submitted successfully!")
+                except Exception as e:
+                    st.error(f"❌ Error submitting event: {e}")
