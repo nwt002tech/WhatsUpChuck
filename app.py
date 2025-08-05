@@ -75,9 +75,10 @@ if "🔍 Search Events" in menu:
     next_month = today + timedelta(days=30)
     date_range = st.date_input("📅 Date Range", (today, next_month))
     
-    # Build query with proper Supabase syntax
+    # Initialize query
     query = supabase.table("events")
     
+    # Apply filters using proper Supabase methods
     if city:
         query = query.ilike("city", f"%{city}%")
     if artist:
@@ -94,35 +95,38 @@ if "🔍 Search Events" in menu:
     # Search button with loading state
     if st.button("Search", use_container_width=True):
         with st.spinner("Finding events..."):
-            data = query.order("event_date", desc=False).execute()
-            events = data.data
-            
-            if not events:
-                st.info("No events found. Try different filters.")
-                st.stop()
+            try:
+                data = query.order("event_date", desc=False).execute()
+                events = data.data
                 
-            # Responsive card layout
-            cols = st.columns(3)
-            for i, row in enumerate(events):
-                with cols[i % 3]:
-                    with st.container():
-                        st.markdown(f"<div class='card'>", unsafe_allow_html=True)
-                        
-                        # Date badge
-                        st.markdown(f"<div class='event-date'>{row['event_date']}</div>", 
-                                   unsafe_allow_html=True)
-                        
-                        # Artist header
-                        st.subheader(f"{row['artist_name']}")
-                        
-                        # Venue info
-                        st.markdown(f"📍 **{row['venue_name']}**, {row['city']}")
-                        
-                        # Flyer image
-                        if row.get("flyer_url"):
-                            st.image(row["flyer_url"], use_column_width=True)
-                        
-                        st.markdown("</div>", unsafe_allow_html=True)
+                if not events:
+                    st.info("No events found. Try different filters.")
+                    st.stop()
+                    
+                # Responsive card layout
+                cols = st.columns(3)
+                for i, row in enumerate(events):
+                    with cols[i % 3]:
+                        with st.container():
+                            st.markdown(f"<div class='card'>", unsafe_allow_html=True)
+                            
+                            # Date badge
+                            st.markdown(f"<div class='event-date'>{row['event_date']}</div>", 
+                                       unsafe_allow_html=True)
+                            
+                            # Artist header
+                            st.subheader(f"{row['artist_name']}")
+                            
+                            # Venue info
+                            st.markdown(f"📍 **{row['venue_name']}**, {row['city']}")
+                            
+                            # Flyer image
+                            if row.get("flyer_url"):
+                                st.image(row["flyer_url"], use_column_width=True)
+                            
+                            st.markdown("</div>", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error fetching events: {str(e)}")
 
 # Submit Event Section
 else:
@@ -147,12 +151,15 @@ else:
             else:
                 # Show loading animation
                 with st.spinner("Submitting..."):
-                    supabase.table("events").insert({
-                        "artist_name": artist,
-                        "venue_name": venue,
-                        "city": city,
-                        "event_date": str(event_date),
-                        "flyer_url": flyer_url or None
-                    }).execute()
-                    time.sleep(1.5)  # Simulate processing
-                    st.success("Event submitted successfully! 🎉")
+                    try:
+                        supabase.table("events").insert({
+                            "artist_name": artist,
+                            "venue_name": venue,
+                            "city": city,
+                            "event_date": str(event_date),
+                            "flyer_url": flyer_url or None
+                        }).execute()
+                        time.sleep(1.5)  # Simulate processing
+                        st.success("Event submitted successfully! 🎉")
+                    except Exception as e:
+                        st.error(f"Error submitting event: {str(e)}")
