@@ -55,8 +55,11 @@ if menu == "🔍 Search Events":
         for row in data.data:
             with st.container():
                 st.markdown(f"<h4 style='margin-bottom: 0;'>{row['artist_name']}</h4>", unsafe_allow_html=True)
-                st.markdown(f"📍 **{row['venue_name']}**, {row['city']}  
-📅 {row['event_date']}", unsafe_allow_html=True)
+                st.markdown(
+                    f"📍 <strong>{row['venue_name']}</strong>, {row['city']}  <br/>"
+                    f"📅 {row['event_date']}",
+                    unsafe_allow_html=True
+                )
                 if row.get("flyer_url"):
                     st.image(row["flyer_url"], use_column_width=True)
                 st.markdown("<hr style='border-top: 1px solid #ccc;'>", unsafe_allow_html=True)
