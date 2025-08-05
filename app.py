@@ -1,37 +1,78 @@
 import streamlit as st
-from datetime import date
 from supabase_client import supabase
+from datetime import date, timedelta
+import time
 
-st.set_page_config(page_title="WhatsUpChuck", layout="wide")
-st.markdown(
-    "<h1 style='text-align: center; color: #f63366;'>🎸 WhatsUpChuck</h1>"
-    "<p style='text-align: center; font-size: 18px;'>Find Local Live Entertainment</p>",
-    unsafe_allow_html=True
+# Modern page config
+st.set_page_config(
+    page_title="WhatsUpChuck",
+    page_icon="🎸",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-# Optional test connection check
-try:
-    test = supabase.table("events").select("*").limit(1).execute()
-    st.success("✅ Connected to Supabase")
-except Exception as e:
-    st.error(f"❌ Supabase connection failed: {e}")
-    st.stop()
+# CSS for modern cards and responsive design
+st.markdown("""
+<style>
+    .card {
+        background-color: #192841;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        transition: transform 0.3s;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+    }
+    .event-date {
+        background: #8A2BE2;
+        color: white !important;
+        border-radius: 5px;
+        padding: 5px 10px;
+        display: inline-block;
+        font-weight: bold;
+    }
+    @media (max-width: 768px) {
+        .responsive-columns {
+            flex-direction: column;
+        }
+    }
+    .stButton>button {
+        background: linear-gradient(45deg, #8A2BE2, #4B0082) !important;
+        color: white !important;
+        border: none;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-st.markdown("---")
+st.title("🎸 WhatsUpChuck")
+st.caption("Discover local live entertainment")
 
-menu = st.sidebar.radio("📋 Menu", ["🔍 Search Events", "📥 Submit Event"])
+# Modern sidebar with icons
+with st.sidebar:
+    st.title("Navigation")
+    menu = st.radio("", ["🔍 Search Events", "📥 Submit Event"], label_visibility="collapsed")
 
-if menu == "🔍 Search Events":
-    st.subheader("🎯 Filter Events")
-    with st.container():
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            city = st.text_input("Search by City")
-        with col2:
-            artist = st.text_input("Search by Artist")
-        with col3:
-            venue = st.text_input("Search by Venue")
-
+# Search Events Section
+if "🔍 Search Events" in menu:
+    st.subheader("Find Live Events")
+    
+    # Responsive filter columns
+    col1, col2, col3 = st.columns([1,1,1], gap="small")
+    with col1:
+        city = st.text_input("📍 City")
+    with col2:
+        artist = st.text_input("🎤 Artist")
+    with col3:
+        venue = st.text_input("🏟️ Venue")
+    
+    # Date range filter
+    today = date.today()
+    next_month = today + timedelta(days=30)
+    date_range = st.date_input("📅 Date Range", (today, next_month))
+    
+    # Build filters
     filters = []
     if city:
         filters.append(("city", "ilike", f"%{city}%"))
@@ -39,50 +80,71 @@ if menu == "🔍 Search Events":
         filters.append(("artist_name", "ilike", f"%{artist}%"))
     if venue:
         filters.append(("venue_name", "ilike", f"%{venue}%"))
+    
+    # Apply date filter if both dates selected
+    if len(date_range) == 2:
+        filters.append(("event_date", "gte", str(date_range[0])))
+        filters.append(("event_date", "lte", str(date_range[1])))
+    
+    # Search button with loading state
+    if st.button("Search", use_container_width=True):
+        with st.spinner("Finding events..."):
+            query = supabase.table("events")
+            for f in filters:
+                query = query.filter(*f)
+            data = query.order("event_date", desc=False).execute()
+            events = data.data
+            
+            if not events:
+                st.info("No events found. Try different filters.")
+                st.stop()
+                
+            # Responsive card layout
+            cols = st.columns(3)
+            for i, row in enumerate(events):
+                with cols[i % 3]:
+                    with st.container():
+                        st.markdown(f"<div class='card'>", unsafe_allow_html=True)
+                        
+                        # Date badge
+                        st.markdown(f"<div class='event-date'>{row['event_date']}</div>", 
+                                   unsafe_allow_html=True)
+                        
+                        # Artist header
+                        st.subheader(f"{row['artist_name']}")
+                        
+                        # Venue info
+                        st.markdown(f"📍 **{row['venue_name']}**, {row['city']}")
+                        
+                        # Flyer image
+                        if row.get("flyer_url"):
+                            st.image(row["flyer_url"], use_column_width=True)
+                        
+                        st.markdown("</div>", unsafe_allow_html=True)
 
-    query = supabase.table("events")
-    for f in filters:
-        query = query.filter(*f)
-
-    try:
-        data = query.select("*").order("event_date", desc=False).execute()
-    except Exception as e:
-        st.error(f"Error fetching events: {e}")
-        st.stop()
-
-    st.markdown("### 🎵 Upcoming Events")
-    if data and data.data:
-        for row in data.data:
-            with st.container():
-                st.markdown(f"<h4 style='margin-bottom: 0;'>{row['artist_name']}</h4>", unsafe_allow_html=True)
-                st.markdown(
-                    f"📍 <strong>{row['venue_name']}</strong>, {row['city']}  <br/>"
-                    f"📅 {row['event_date']}",
-                    unsafe_allow_html=True
-                )
-                if row.get("flyer_url"):
-                    st.image(row["flyer_url"], use_column_width=True)
-                st.markdown("<hr style='border-top: 1px solid #ccc;'>", unsafe_allow_html=True)
-    else:
-        st.info("No events found. Try different filters.")
-
-elif menu == "📥 Submit Event":
-    st.subheader("📅 Submit a New Event")
-    st.markdown("Fill in the details below to add your local event.")
-
-    with st.form("event_form"):
-        artist = st.text_input("Artist Name")
-        venue = st.text_input("Venue Name")
-        city = st.text_input("City")
-        event_date = st.date_input("Event Date", value=date.today())
-        flyer_url = st.text_input("Flyer Image URL (optional)")
-        submitted = st.form_submit_button("Submit Event")
-
+# Submit Event Section
+else:
+    st.subheader("Submit New Event")
+    
+    with st.form("event_form", clear_on_submit=True):
+        # Responsive form layout
+        col1, col2 = st.columns(2)
+        with col1:
+            artist = st.text_input("Artist Name*", placeholder="Enter artist/band name")
+            venue = st.text_input("Venue Name*", placeholder="Enter venue name")
+            city = st.text_input("City*", placeholder="Enter city")
+        with col2:
+            event_date = st.date_input("Event Date*", value=date.today())
+            flyer_url = st.text_input("Flyer Image URL", placeholder="https://...")
+        
+        # Form validation
+        submitted = st.form_submit_button("Submit Event", type="primary")
         if submitted:
             if not artist or not venue or not city:
-                st.error("⚠️ Please fill out all required fields.")
+                st.error("Please fill all required fields (*)")
             else:
-                try:
+                # Show loading animation
+                with st.spinner("Submitting..."):
                     supabase.table("events").insert({
                         "artist_name": artist,
                         "venue_name": venue,
@@ -90,6 +152,5 @@ elif menu == "📥 Submit Event":
                         "event_date": str(event_date),
                         "flyer_url": flyer_url or None
                     }).execute()
-                    st.success("🎉 Your event has been submitted!")
-                except Exception as e:
-                    st.error(f"❌ Error submitting event: {e}")
+                    time.sleep(1.5)  # Simulate processing
+                    st.success("Event submitted successfully! 🎉")
